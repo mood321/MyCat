@@ -1,8 +1,8 @@
-package com.mood.framework.init;
+package com.mood.framework.minicat.init;
 
-import com.mood.framework.exception.BadRequestException;
-import com.mood.framework.exception.RequestNotInitException;
-import com.mood.framework.init.abs.HttpBulider;
+import com.mood.framework.minicat.exception.BadRequestException;
+import com.mood.framework.minicat.exception.RequestNotInitException;
+import com.mood.framework.minicat.init.abs.HttpBulider;
 import com.mood.framework.minicat.config.MoodCatConfig;
 import com.mood.framework.minicat.entity.HttpServletRequest;
 import com.mood.framework.minicat.util.ByteUtils;
@@ -11,30 +11,35 @@ import com.mood.framework.minicat.util.StringUtil;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 
-public class BioBulider extends HttpBulider {
-    private Socket socket;
+public class NIOBulider extends HttpBulider {
+    private SocketChannel channel;
 
-    public BioBulider(Socket socket) {
-        this.socket = socket;
+    public NIOBulider(SocketChannel channel) {
+        this.channel = channel;
     }
 
     @Override
     public void buildRequestHeader() throws IOException {
         if (request == null) {
-           // buildRequest();
             throw new RequestNotInitException("Request尚未初始化");
         }
         try {
-            byte[] data = ByteUtils.getBytes(socket.getInputStream(), MoodCatConfig.MAX_HEADER_LENGTH);
-            String s=new String(data);
-            if (StringUtil.isNullOrEmpty(data)) {
+            /**
+             * 接受header
+             */
+            ByteBuffer byteBuffer = ByteBuffer.allocateDirect(MoodCatConfig.MAX_HEADER_LENGTH);
+            int count = channel.read(byteBuffer);
+            if (count < 1) {
                 throw new BadRequestException("错误的请求报文");
             }
-            boolean isReadEnd = data.length < MoodCatConfig.MAX_HEADER_LENGTH;
-            String headerContext = new String(data, "iso-8859-1");
+            boolean isReadEnd = count < MoodCatConfig.MAX_HEADER_LENGTH;
+            byteBuffer.flip();
+            byte[] headerData = new byte[byteBuffer.remaining()];
+            byteBuffer.get(headerData, 0, headerData.length);
+            String headerContext = new String(headerData, "iso-8859-1");
             String bodyContext = null;
             if (headerContext.contains(splitFlag)) {
                 bodyContext = headerContext.substring(headerContext.indexOf(splitFlag) + splitFlag.length());
@@ -104,33 +109,29 @@ public class BioBulider extends HttpBulider {
                     byte[] bodyData = bodyContext.getBytes("iso-8859-1");
                     byteArrayOutputStream.write(bodyData);
                     int remainLength = request.getContextLength() - bodyData.length;
-                    byte[] remainData = ByteUtils.getBytes(socket.getInputStream(), remainLength);
+                    byte[] remainData = ByteUtils.getBytes(channel, remainLength);
                     byteArrayOutputStream.write(remainData);
                     request.setInputStream(new ByteArrayInputStream(byteArrayOutputStream.toByteArray()));
                 } finally {
                     byteArrayOutputStream.close();
                 }
-
             } catch (Exception e) {
                 e.printStackTrace();
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
-
     }
 
     @Override
-    protected void buildRequest()  {
+    protected void buildRequest() {
         this.request = new HttpServletRequest();
     }
 
     @Override
-    public void flush() throws IOException {
-        byte[] data = response.getOutputStream().toByteArray();
-        if (StringUtil.isNullOrEmpty(data)) {
-            return;
-        }
-        socket.getOutputStream().write(data);
+    protected void flush() throws IOException {
+        byte[] bytes = this.response.getOutputStream().toByteArray();
+        // 如果没有数据
+        channel.write(ByteBuffer.wrap(bytes));
     }
 }

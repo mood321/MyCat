@@ -1,4 +1,4 @@
-package com.mood.framework.load;
+package com.mood.framework.minicat.load;
 
 import com.mood.framework.minicat.config.MoodCatConfig;
 import com.mood.framework.minicat.entity.MultipartFile;

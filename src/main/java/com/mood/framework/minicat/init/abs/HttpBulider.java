@@ -1,12 +1,12 @@
-package com.mood.framework.init.abs;
+package com.mood.framework.minicat.init.abs;
 
-import com.mood.framework.exception.ResponseNotInitException;
+import com.mood.framework.minicat.exception.ResponseNotInitException;
 import com.mood.framework.minicat.config.MoodCatConfig;
 import com.mood.framework.minicat.entity.HttpServletRequest;
 import com.mood.framework.minicat.entity.HttpServletResponse;
 import com.mood.framework.minicat.util.GZIPUtils;
 import com.mood.framework.minicat.util.StringUtil;
-import com.mood.framework.press.MoodcatProcess;
+import com.mood.framework.minicat.press.MoodcatProcess;
 
 import java.io.IOException;
 import java.text.MessageFormat;
@@ -89,7 +89,7 @@ public abstract class HttpBulider {
             throw new ResponseNotInitException("Response尚未初始化");
         }
         response.setHeader("Connection", "close");
-        response.setHeader("Server", "MiniCat/1.0 By Coody");
+        response.setHeader("Server", "MoodCat/1.0 By Mood");
         if (!response.containsHeader("Content-Type")) {
             response.setHeader("Content-Type", "text/html");
         }

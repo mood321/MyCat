@@ -7,6 +7,7 @@ import com.mood.framework.minicat.container.FilterContainer;
 import com.mood.framework.minicat.container.ServletContainer;
 import com.mood.framework.minicat.service.BIOService;
 import com.mood.framework.minicat.service.NIOService;
+import com.mood.framework.minicat.service.NettyService;
 import com.mood.framework.minicat.service.serviceInterface.Service;
 import com.mood.framework.minicat.servlet.HttpFilter;
 import com.mood.framework.minicat.servlet.HttpPart;
@@ -29,6 +30,9 @@ public class AppRun {
         }
         if (MoodCatConfig.MODEL == 2) {
             service = new NIOService();
+        }
+        if (MoodCatConfig.MODEL == 3) {
+            service = new NettyService();
         }
         System.out.println("service 模式====>" + service.getClass().getClass());
 

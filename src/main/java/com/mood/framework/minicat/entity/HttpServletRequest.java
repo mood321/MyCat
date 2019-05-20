@@ -1,13 +1,12 @@
 package com.mood.framework.minicat.entity;
 
-import com.mood.framework.load.ParamentLoad;
+import com.mood.framework.minicat.load.ParamentLoad;
 import com.mood.framework.minicat.config.MoodCatConfig;
 import com.mood.framework.minicat.container.SessionContainer;
 import com.mood.framework.minicat.util.ByteUtils;
 import com.mood.framework.minicat.util.GZIPUtils;
 import com.mood.framework.minicat.util.StringUtil;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.HashMap;

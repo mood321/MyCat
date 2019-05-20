@@ -1,75 +1,71 @@
-package com.mood.framework.init;
+package com.mood.framework.minicat.init;
 
-import com.mood.framework.exception.BadRequestException;
-import com.mood.framework.exception.RequestNotInitException;
-import com.mood.framework.init.abs.HttpBulider;
 import com.mood.framework.minicat.config.MoodCatConfig;
 import com.mood.framework.minicat.entity.HttpServletRequest;
+import com.mood.framework.minicat.exception.BadRequestException;
+import com.mood.framework.minicat.init.abs.HttpBulider;
 import com.mood.framework.minicat.util.ByteUtils;
 import com.mood.framework.minicat.util.StringUtil;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandlerContext;
 
+import javax.naming.Context;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.channels.SelectableChannel;
-import java.nio.channels.SocketChannel;
+import java.io.UnsupportedEncodingException;
 
-public class NIOBulider extends HttpBulider {
-    private SocketChannel channel;
-
-    public NIOBulider(SocketChannel channel) {
-        this.channel = channel;
+public class NettyBuilder extends HttpBulider {
+    StringBuilder res;
+    ChannelHandlerContext ctx;
+    /**
+     * 接受 byteBuf 传参
+     */
+    public NettyBuilder(StringBuilder res, ChannelHandlerContext ctx) {
+this.ctx=ctx;
+        this.res = res;
     }
 
     @Override
     public void buildRequestHeader() throws IOException {
-        if (request == null) {
-            throw new RequestNotInitException("Request尚未初始化");
+        if (res == null) {
+            throw new BadRequestException("错误的请求报文");
         }
         try {
-            /**
-             * 接受header
-             */
-            ByteBuffer byteBuffer = ByteBuffer.allocateDirect(MoodCatConfig.MAX_HEADER_LENGTH);
-            int count = channel.read(byteBuffer);
-            if (count < 1) {
-                throw new BadRequestException("错误的请求报文");
+            String headContext = "";//请求头
+            String bodyContext = null;//请求体
+            String context = this.res.toString();
+            if (context.contains(splitFlag)) {
+                headContext = context.substring(0, context.indexOf(splitFlag) + splitFlag.length());
+                bodyContext = context.substring(context.indexOf(splitFlag) + splitFlag.length());
             }
-            boolean isReadEnd = count < MoodCatConfig.MAX_HEADER_LENGTH;
-            byteBuffer.flip();
-            byte[] headerData = new byte[byteBuffer.remaining()];
-            byteBuffer.get(headerData, 0, headerData.length);
-            String headerContext = new String(headerData, "iso-8859-1");
-            String bodyContext = null;
-            if (headerContext.contains(splitFlag)) {
-                bodyContext = headerContext.substring(headerContext.indexOf(splitFlag) + splitFlag.length());
-                headerContext = headerContext.substring(0, headerContext.indexOf(splitFlag));
-            }
-            headerContext += splitFlag;
-            String[] headers = headerContext.split("\r\n");
-            if (headers.length < 2) {
-                throw new BadRequestException("错误的请求报文");
-            }
+
+            String[] headers = headContext.split("\r\n");
             String line = headers[0];
             while (line.contains("  ")) {
-                line = line.replace("  ", " ");
+                line.replace("  ", " ");
             }
-            String[] vanguards = line.trim().split(" ");
-            if (vanguards.length != 3) {
+            String[] lineVang = line.trim().split(" ");
+
+            if (lineVang.length != 3) {
                 throw new BadRequestException("错误的请求报文");
             }
-            request.setMethod(vanguards[0]);
-            String requestURI = vanguards[1];
+            request.setMethod(lineVang[0]);
+            String requestURI = lineVang[1];
             if (requestURI.contains("?")) {
                 int index = requestURI.indexOf("?");
                 if (index < requestURI.length() - 1) {
                     request.setQueryString(requestURI.substring(index + 1));
                 }
                 requestURI = requestURI.substring(0, index);
+                if("/".equals(requestURI)){
+                    requestURI=MoodCatConfig.WELCOME_PATH;
+                }
             }
             request.setRequestURI(requestURI);
-            request.setProtocol(vanguards[2]);
+            request.setProtocol(lineVang[2]);
+            //处理特殊的请求头
             for (int i = 1; i < headers.length; i++) {
                 String header = headers[i];
                 int index = header.indexOf(":");
@@ -98,27 +94,31 @@ public class NIOBulider extends HttpBulider {
                     request.setContextLength(Integer.valueOf(value));
                 }
             }
+
             try {
-                if (isReadEnd || request.getContextLength() < 1) {
-                    if (!StringUtil.isNullOrEmpty(bodyContext)) {
-                        request.setInputStream(new ByteArrayInputStream(bodyContext.getBytes("iso-8859-1")));
-                    }
-                    return;
+
+                if (!StringUtil.isNullOrEmpty(bodyContext)) {
+                    request.setInputStream(new ByteArrayInputStream(bodyContext.getBytes(MoodCatConfig.ENCODE)));
                 }
+
                 ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
                 try {
-                    byte[] bodyData = bodyContext.getBytes("iso-8859-1");
+                    byte[] bodyData = bodyContext.getBytes(MoodCatConfig.ENCODE);
                     byteArrayOutputStream.write(bodyData);
-                    int remainLength = request.getContextLength() - bodyData.length;
-                    byte[] remainData = ByteUtils.getBytes(channel, remainLength);
-                    byteArrayOutputStream.write(remainData);
+
+
                     request.setInputStream(new ByteArrayInputStream(byteArrayOutputStream.toByteArray()));
                 } finally {
                     byteArrayOutputStream.close();
                 }
-            } catch (Exception e) {
+            } catch (BadRequestException e) {
+                e.printStackTrace();
+            } catch (NumberFormatException e) {
+                e.printStackTrace();
+            } catch (UnsupportedEncodingException e) {
                 e.printStackTrace();
             }
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -131,8 +131,11 @@ public class NIOBulider extends HttpBulider {
 
     @Override
     protected void flush() throws IOException {
-        byte[] bytes = this.response.getOutputStream().toByteArray();
-        // 如果没有数据
-        channel.write(ByteBuffer.wrap(bytes));
+        byte[] bytes = response.getOutputStream().toByteArray();
+        if (StringUtil.isNullOrEmpty(bytes)) {
+            return;
+        }
+        ctx.write(Unpooled.copiedBuffer(bytes));
+
     }
 }

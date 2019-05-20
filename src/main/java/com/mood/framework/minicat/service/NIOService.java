@@ -1,14 +1,13 @@
 package com.mood.framework.minicat.service;
 
-import com.mood.framework.init.NIOBulider;
-import com.mood.framework.init.abs.HttpBulider;
+import com.mood.framework.minicat.init.NIOBulider;
+import com.mood.framework.minicat.init.abs.HttpBulider;
 import com.mood.framework.minicat.service.serviceInterface.Service;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.*;
 import java.util.Iterator;
-import java.util.Set;
 
 public class NIOService implements Service {
     private Selector service;
@@ -72,6 +71,7 @@ public class NIOService implements Service {
     private void readable(SelectionKey skey) throws  ClosedChannelException{
         SocketChannel channel = (SocketChannel)skey.channel();
         HttpBulider builder=new NIOBulider(channel);
+
         builder.builder();
         SelectionKey sKey = channel.register(service, SelectionKey.OP_WRITE);
         sKey.attach(builder);

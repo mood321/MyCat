@@ -1,4 +1,4 @@
-package com.mood.framework.exception;
+package com.mood.framework.minicat.exception;
 
 @SuppressWarnings("serial")
 public class ResponseNotInitException extends MiniCatException{

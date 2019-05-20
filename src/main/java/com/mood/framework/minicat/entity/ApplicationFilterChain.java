@@ -1,7 +1,7 @@
 package com.mood.framework.minicat.entity;
 
 
-import com.mood.framework.exception.PageNotFoundException;
+import com.mood.framework.minicat.exception.PageNotFoundException;
 import com.mood.framework.minicat.container.FilterContainer;
 import com.mood.framework.minicat.servlet.HttpFilter;
 import com.mood.framework.minicat.servlet.HttpServlet;
